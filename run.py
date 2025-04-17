@@ -4,13 +4,15 @@ import os
 import sys
 import re
 import json
+import parse_json
+from pathlib import Path
 
-def compile_java(java_file, output_dir):
+def compile_java(java_file, output_dir, classpath):
     """Compile a Java file into the given output directory."""
     os.makedirs(output_dir, exist_ok=True)
     try:
         subprocess.run([
-            "javac", "-d", output_dir, java_file
+            "javac", "-d", output_dir, "-cp", classpath,java_file
         ], check=True)
     except subprocess.CalledProcessError:
         print("Error: Failed to compile Java file.")
@@ -37,14 +39,13 @@ def run_jbmc(jbmc_path, classpath, java_class, output_file):
             capture_output=True,
             text=True
         )
-        
-        try:
-            stdout_json = json.loads(result.stdout.strip())
-        except json.JSONDecodeError:
-            stdout_json = result.stdout.strip()
-        
+
+        status, passed, failed = parse_json.parse_jbmc_output(result.stdout.strip())
+
         output_data = {
-            "stdout": stdout_json,
+            "status_messages": status,
+            "passed": passed,
+            "failed": failed,
             "stderr": result.stderr.strip(),
             "return_code": result.returncode
         }
@@ -60,16 +61,18 @@ def run_jbmc(jbmc_path, classpath, java_class, output_file):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Compile and Run JBMC on a Java file.")
-    parser.add_argument("jbmc_path", help="Path to the JBMC executable")
-    parser.add_argument("java_file", help="Path to the Java file")
+    parser.add_argument("java_file", help="Path to the Java file", type=Path)
+    parser.add_argument("--jbmc", default='jbmc',help="Path to the JBMC executable", type=Path)
+    parser.add_argument("--classpath",default='', help="Classpath", type=Path)
     parser.add_argument("--output", default="jbmc_output.json", help="JSON output file (default: jbmc_output.json)")
     
     args = parser.parse_args()
+    print(args)
 
     output_dir = "classes"
     
-    compile_java(args.java_file, output_dir)
+    compile_java(args.java_file, output_dir, args.classpath)
     java_class = extract_main_class(args.java_file)
     print(f"Detected main class: {java_class}")
     
-    run_jbmc(args.jbmc_path, output_dir, java_class, args.output)
+    run_jbmc(args.jbmc, output_dir, java_class, args.output)
