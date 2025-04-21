@@ -38,4 +38,27 @@ def print_output(messages):
             print(f"    {message['description']}")        
             
 def parse_traces(traces):
-    return
+    for trace in traces:
+        nondet_vars = []
+
+        for step in trace:
+            if step.get("stepType") == "assert-failed":
+                print("Assertion Failed")
+                break
+
+            if step.get("stepType") != "assignment":
+                continue
+
+            # Capture var assignments from Verifier.nondetInt()
+            var_name = step.get("lhs", "")
+            val = step.get("value", {}).get("data", "<no data>")
+
+            if "Verifier.nondetInt" in var_name and "#return_value" in var_name:
+                # Store the variable assignment
+                nondet_vars.append((var_name, val))
+                print(f"{var_name} = {val}  # nondet value")
+
+        # Print
+        print("Captured nondet assignments:")
+        for var, val in nondet_vars:
+            print(f"  {var} = {val}")
