@@ -40,8 +40,14 @@ def print_output(messages):
 def parse_traces(traces):
     for trace in traces:
         nondet_vars = []
+        last_known_line = "<no line>"
 
         for step in trace:
+            # Save the most recent line number if this step has it
+            source_line = step.get("sourceLocation", {}).get("line")
+            if source_line is not None:
+                last_known_line = source_line
+
             if step.get("stepType") == "assert-failed":
                 print("Assertion Failed")
                 break
@@ -49,16 +55,13 @@ def parse_traces(traces):
             if step.get("stepType") != "assignment":
                 continue
 
-            # Capture var assignments from Verifier.nondetInt()
             var_name = step.get("lhs", "")
             val = step.get("value", {}).get("data", "<no data>")
 
             if "Verifier.nondetInt" in var_name and "#return_value" in var_name:
-                # Store the variable assignment
-                nondet_vars.append((var_name, val))
-                print(f"{var_name} = {val}  # nondet value")
+                nondet_vars.append((var_name, val, last_known_line))
+                print(f"{var_name} = {val}  # nondet value (line {last_known_line})")
 
-        # Print
         print("Captured nondet assignments:")
-        for var, val in nondet_vars:
-            print(f"  {var} = {val}")
+        for var, val, line in nondet_vars:
+            print(f"  {var} = {val}  (line {line})")
