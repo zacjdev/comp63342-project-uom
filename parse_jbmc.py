@@ -1,7 +1,8 @@
 import json
-from types import SimpleNamespace
+import parse_trace
+import java_gen
 
-def parse_jbmc_output(jbmc_output):
+def parse_jbmc_output(jbmc_output, parse_nondet, java_file_path):
     status_messages = []
     passed = []
     failed = []
@@ -26,8 +27,12 @@ def parse_jbmc_output(jbmc_output):
     print("Failed Tests: " + str(len(failed)) + ":")
     print_output(failed)
     print("---------------------")
-    parse_traces(traces)
-    
+    if parse_nondet:
+        counterexample = parse_trace.parse_nondet_traces(traces)
+        java_gen.gen_nondet_code(counterexample, java_file_path)
+    else: 
+        counterexample = parse_trace.parse_jbmc_without_nondet(traces)
+        java_gen.gen_code(counterexample, java_file_path)
     return status_messages,passed, failed
 
 def print_output(messages):
@@ -36,32 +41,4 @@ def print_output(messages):
             print(f"    {message['description']} : Line {message['sourceLocation']['line']}")
         else:
             print(f"    {message['description']}")        
-            
-def parse_traces(traces):
-    for trace in traces:
-        nondet_vars = []
-        last_known_line = "<no line>"
 
-        for step in trace:
-            # Save the most recent line number if this step has it
-            source_line = step.get("sourceLocation", {}).get("line")
-            if source_line is not None:
-                last_known_line = source_line
-
-            if step.get("stepType") == "assert-failed":
-                print("Assertion Failed")
-                break
-
-            if step.get("stepType") != "assignment":
-                continue
-
-            var_name = step.get("lhs", "")
-            val = step.get("value", {}).get("data", "<no data>")
-
-            if "Verifier.nondetInt" in var_name and "#return_value" in var_name:
-                nondet_vars.append((var_name, val, last_known_line))
-                print(f"{var_name} = {val}  # nondet value (line {last_known_line})")
-
-        print("Captured nondet assignments:")
-        for var, val, line in nondet_vars:
-            print(f"  {var} = {val}  (line {line})")

@@ -4,8 +4,10 @@ import os
 import sys
 import re
 import json
-import parse_json
+import parse_jbmc
+from java_gen import gen_nondet_code, gen_code
 from pathlib import Path
+import parse_trace
 
 # Compile a Java file into the given output directory.
 def compile_java(java_file, output_dir, classpath):
@@ -39,7 +41,7 @@ def run_jbmc(jbmc_path, classpath, java_class, output_file):
     try:
         # Run JBMC with the specified classpath and Java class
         result = subprocess.run(
-            [jbmc_path, "--classpath", classpath, java_class, "--json-ui"], capture_output=True, text=True
+            [jbmc_path, "--classpath", classpath, java_class, "--json-ui", '--unwind', '10'], capture_output=True, text=True
         ).stdout.strip()
         return result
     
@@ -48,9 +50,9 @@ def run_jbmc(jbmc_path, classpath, java_class, output_file):
         sys.exit(1)
         
 # Parse the JBMC output and print the results.
-def parse_jbmc_output(result, output_file):
+def parse_jbmc_output(result, output_file, parse_nondet, java_file_path):
 
-    status, passed, failed = parse_json.parse_jbmc_output(result)
+    status, passed, failed = parse_jbmc.parse_jbmc_output(result, parse_nondet, java_file_path)
     output_data = {
         "status_messages": status,
         "passed": passed,
@@ -69,6 +71,8 @@ if __name__ == "__main__":
     parser.add_argument("--jbmc", default='jbmc',help="Path to the JBMC executable", type=Path)
     parser.add_argument("--classpath",default='', help="Classpath", type=Path)
     parser.add_argument("--output", default="jbmc_output.json", help="JSON output file (default: jbmc_output.json)")
+    parser.add_argument("--nondet", default=False, help='Enable flag if code contains nondet calls', action='store_true')
+    parser.add_argument("--entry", default='', help='Entry point')
     
     # Parse the command-line arguments
     args = parser.parse_args()
@@ -82,10 +86,17 @@ if __name__ == "__main__":
     java_class = extract_main_class(args.java_file)
     print(f"Detected main class: {java_class}")
     
+    if args.entry != '':
+        print(f"Entry point: {args.entry}")
+        java_class = java_class + '.' + args.entry
+
     # Run JBMC on the compiled Java class
     print(f"Running JBMC on {java_class}...")
+
     result = run_jbmc(args.jbmc, output_dir, java_class, args.output)
     # Parse the JBMC output and save it to a JSON file
     print(f"Parsing JBMC output...")
-    parse_jbmc_output(result, args.output)
+    print(f"Nondet flag: {args.nondet}")
+
+    parse_jbmc_output(result, args.output, args.nondet, args.java_file)
     print("JBMC analysis completed.")
