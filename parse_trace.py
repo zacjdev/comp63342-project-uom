@@ -1,15 +1,15 @@
 import re
 import json
 
-def _get_assignment_var(step):
+def _get_assignment_var(step, trace):
     if not step['hidden']:
         if step['lhs'].startswith('arg'):
-            return _get_variable_type(step)
+            return _get_variable_type(step, trace)
     return ''
 
-def _get_variable_type(step):
+def _get_variable_type(step, trace):
     if step['value']['type'].startswith('struct java::array'):
-        return f"       {_parse_array_type(step['value']['type'])} {step['lhs']} = {step['value']['data']};"
+        return f"       {_parse_array_type(step['value']['type'])} {step['lhs']} = {_get_array_value(step, trace)};"
     return f"       {step['value']['type']} {step['lhs']} = {step['value']['data']};"
     
 def _parse_array_type(array_def_string):
@@ -19,6 +19,24 @@ def _parse_array_type(array_def_string):
 def _add_function_to_code(function_details):
     return f"       {function_details['name']}({','.join(function_details['args'])});"
 
+def _get_array_value(elem, trace):
+        data = []
+        if elem['value']['data'].startswith('dynamic_object'):
+            dynamic_object = elem['value']['data']
+            for elem2 in trace:
+                if elem2['stepType'] != 'assignment':
+                    continue
+                if elem2['lhs'] == f'{dynamic_object}.data' and elem2['value']['data'].startswith('dynamic_object'):
+                    dynamic_data_obj = elem2['value']['data']
+                    for elem3 in trace:
+                        if elem3['stepType'] != 'assignment':
+                            continue
+                        if elem3['lhs'] == dynamic_data_obj:
+                            data = [x['value']['data'] for x in elem3['value']['elements']]
+            return f"{{ {",".join(data)} }}"
+        else:
+            return elem['value']['data']
+
 def parse_jbmc_without_nondet(traces):
     counterexamples = []
     for trace in traces:
@@ -27,7 +45,7 @@ def parse_jbmc_without_nondet(traces):
         for step in trace:
             if step['stepType'] == 'assignment': 
                 if step['assignmentType'] == 'variable':
-                    assignment = _get_assignment_var(step)
+                    assignment = _get_assignment_var(step, trace)
                     if assignment != '':
                         code.append(assignment)
                 elif step['assignmentType'] == 'actual-parameter':
