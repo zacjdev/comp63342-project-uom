@@ -10,7 +10,7 @@ def gen_code(code_arr, java_file_path):
         final_code += code
         final_code.append(f'    }}')
         final_code.append('}')
-        write_code_to_file(final_code, classname)
+        write_code_to_file(final_code, classname, java_file_path)
 
 def gen_nondet_code(counterexamples, java_file_path): 
     benchmark_code = read_example(java_file_path)
@@ -21,10 +21,10 @@ def gen_nondet_code(counterexamples, java_file_path):
                 benchmark_code[i] = benchmark_code[i].replace(classname, classname +"_counterexample")
             if "Verifier.nondetInt()" in benchmark_code[i]:
                 benchmark_code[i] = benchmark_code[i].replace("Verifier.nondetInt()", counterexample[0][1])
-        write_code_to_file(benchmark_code, classname)
+        write_code_to_file(benchmark_code, classname, java_file_path)
 
-def write_code_to_file(benchmark_code, classname):
-    with open(f"counterexamples/{classname}.java", "w") as exmple_file:
+def write_code_to_file(benchmark_code, classname, java_file_path):
+    with open(f"{java_file_path.parent}/{classname}.java", "w") as exmple_file:
         exmple_file.write("\n".join(benchmark_code))
 
 def get_classname_from_path(java_file_path):

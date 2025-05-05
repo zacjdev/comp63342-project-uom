@@ -63,27 +63,15 @@ def parse_jbmc_output(result, output_file, parse_nondet, java_file_path):
 
     print(f"JBMC output saved to {output_file}")
 
-# Main function
-if __name__ == "__main__":
-    # Set up argument parsing
-    parser = argparse.ArgumentParser(description="Compile and Run JBMC on a Java file.")
-    parser.add_argument("java_file", help="Path to the Java file", type=Path)
-    parser.add_argument("--jbmc", default='jbmc',help="Path to the JBMC executable", type=Path)
-    parser.add_argument("--classpath",default='', help="Classpath", type=Path)
-    parser.add_argument("--output", default="jbmc_output.json", help="JSON output file (default: jbmc_output.json)")
-    parser.add_argument("--nondet", default=False, help='Enable flag if code contains nondet calls', action='store_true')
-    parser.add_argument("--entry", default='', help='Entry point')
-    
-    # Parse the command-line arguments
-    args = parser.parse_args()
-    output_dir = "classes"
-    
+# Driver function for each file
+def compile_and_execute_jbmc(java_file, args):
+
     # Compile the Java file
-    print(f"Compiling {args.java_file}...")
-    compile_java(args.java_file, output_dir, args.classpath)
+    print(f"Compiling {java_file}...")
+    compile_java(java_file, output_dir, args.classpath)
     # Extract the main class name
-    print(f"Extracting main class from {args.java_file}...")
-    java_class = extract_main_class(args.java_file)
+    print(f"Extracting main class from {java_file}...")
+    java_class = extract_main_class(java_file)
     print(f"Detected main class: {java_class}")
     
     if args.entry != '':
@@ -98,5 +86,29 @@ if __name__ == "__main__":
     print(f"Parsing JBMC output...")
     print(f"Nondet flag: {args.nondet}")
 
-    parse_jbmc_output(result, args.output, args.nondet, args.java_file)
+    parse_jbmc_output(result, args.output, args.nondet, java_file)
     print("JBMC analysis completed.")
+
+# Main function
+if __name__ == "__main__":
+    # Set up argument parsing
+    parser = argparse.ArgumentParser(description="Compile and Run JBMC on a Java file.")
+    parser.add_argument("java_file", help="Path to the Java file", type=Path)
+    parser.add_argument("--jbmc", default='jbmc',help="Path to the JBMC executable", type=Path)
+    parser.add_argument("--classpath",default='', help="Classpath", type=Path)
+    parser.add_argument("--output", default="jbmc_output.json", help="JSON output file (default: jbmc_output.json)")
+    parser.add_argument("--nondet", default=False, help='Enable flag if code contains nondet calls', action='store_true')
+    parser.add_argument("--entry", default='', help='Entry point')
+    
+    # Parse the command-line arguments
+    args = parser.parse_args()
+    output_dir = "classes"
+
+    if args.java_file.is_dir():
+        print(sorted(args.java_file.rglob('*.java')))
+        for java_file in args.java_file.rglob('*.java'):
+            compile_and_execute_jbmc(java_file, args)
+    else:
+        compile_and_execute_jbmc(args.java_file, args)
+
+    
