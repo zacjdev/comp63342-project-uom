@@ -21,6 +21,7 @@ def gen_nondet_code(counterexamples, java_file_path):
                 benchmark_code[i] = benchmark_code[i].replace(classname, classname +"_counterexample")
             if "Verifier.nondetInt()" in benchmark_code[i]:
                 benchmark_code[i] = benchmark_code[i].replace("Verifier.nondetInt()", counterexample[0][1])
+        classname = f'{classname}_counterexample'
         write_code_to_file(benchmark_code, classname, java_file_path)
 
 def write_code_to_file(benchmark_code, classname, java_file_path):
